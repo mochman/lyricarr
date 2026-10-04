@@ -10,7 +10,7 @@ permissions:
   packages: write
 
 jobs:
-  docker_publish:
+  docker_publish_cpu:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -26,5 +26,28 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
+          context: .
           push: true
           tags: ghcr.io/${{ github.repository }}:latest
+          file: ./Dockerfile
+
+  docker_publish_cuda:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/${{ github.repository }}:cuda
+          file: ./Dockerfile.cuda
