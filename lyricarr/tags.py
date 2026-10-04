@@ -18,7 +18,7 @@ class TrackMeta:
 
     @property
     def sidecar(self) -> Path:
-        return self.path.with_suffix(".lrc")
+        return self.path.with_suffix(".elrc")
 
 
 def _first(tags, *keys) -> str:
