@@ -71,7 +71,8 @@ def _needs_sidecar(sidecar: Path, args) -> bool:
 
 def _run_once(args, generate_elrc, device: str) -> None:
     files = scan_library(args.library)
-    todo = [f for f in files if _needs_sidecar(f.with_suffix(".lrc"), args)]
+    extensions = [".lrc", ".elrc", ".ttml"]
+    todo = [f for f in files if all(_needs_sidecar(f.with_suffix(ext), args) for ext in extensions)]
     have = len(files) - len(todo)
     print(f"Found {len(files)} audio files; {have} already have sidecars; "
           f"{len(todo)} to process" + (f" (limit {args.limit})" if args.limit else ""),
