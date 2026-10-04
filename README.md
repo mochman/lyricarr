@@ -1,5 +1,7 @@
 # Lyricarr
 
+Forked from Nathan1258
+
 **Word-synced lyrics for your self-hosted music library — automatically.**
 
 Point Lyricarr at your music folder and it
