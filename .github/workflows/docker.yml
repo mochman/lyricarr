@@ -24,8 +24,8 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
-            type=semver,pattern={{version}},value=${{ github.ref_name }},prefix=cpu-
-            type=raw,value=latest
+            type=semver,pattern={{version}},value=${{ github.ref_name }},strip=cpu-v
+            type=raw,value=cpu
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -56,7 +56,7 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
-            type=semver,pattern={{version}},value=${{ github.ref_name }},prefix=cuda-
+            type=semver,pattern={{version}},value=${{ github.ref_name }},strip=cuda-v,suffix=-cuda
             type=raw,value=cuda
 
       - name: Log in to GHCR
