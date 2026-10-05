@@ -24,7 +24,8 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
-            type=semver,pattern={{version}},value=${{ github.ref_name }},prefix=cpu-
+            type=semver,pattern={{version}},value=${{ github.ref_name }},strip=cpu-v
+            type=raw,value=cpu
             type=raw,value=latest
 
       - name: Log in to GHCR
@@ -56,7 +57,7 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
-            type=semver,pattern={{version}},value=${{ github.ref_name }},prefix=cuda-
+            type=semver,pattern={{version}},value=${{ github.ref_name }},strip=cuda-v,suffix=-cuda
             type=raw,value=cuda
 
       - name: Log in to GHCR
