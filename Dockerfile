@@ -3,9 +3,9 @@ FROM python:3.12-slim
 RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir \
-    --extra-index-url https://download.pytorch.org/whl/cpu \
-    torch torchaudio
+RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch 
+
+RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torchaudio
 
 WORKDIR /app
 COPY pyproject.toml README.md ./
