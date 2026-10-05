@@ -4,7 +4,7 @@
 
 services:
   lyricarr:
-    image: ghcr.io/nathan1258/lyricarr:latest   # or: build: .
+    image: ghcr.io/mochman/lyricarr:latest   # or: build: .
     container_name: lyricarr
     volumes:
       - /path/to/your/music:/music   # <-- EDIT: your music library (read-write)
@@ -17,10 +17,10 @@ services:
       # LYRICARR_LIMIT: "20"         # cap tracks per run (handy for a first try)
     restart: "no"                    # set "unless-stopped" if using LYRICARR_INTERVAL
 
-  # --- NVIDIA GPU variant (Linux hosts only) --------------------------------
+  # --- NVIDIA GPU variant --------------------------------
   # Uncomment to build the CUDA image and run on a GPU.
   # lyricarr-gpu:
-  #   image: ghcr.io/nathan1258/lyricarr:cuda
+  #   image: ghcr.io/mochman/lyricarr:cuda
   #   container_name: lyricarr
   #   volumes:
   #     - /path/to/your/music:/music
