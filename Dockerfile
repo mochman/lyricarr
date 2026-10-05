@@ -1,5 +1,9 @@
 FROM python:3.12-slim
 
+LABEL org.opencontainers.image.source=https://github.com/mochman/lyricarr
+LABEL org.opencontainers.image.description="Lyricarr CPU Image"
+LABEL org.opencontainers.image.licenses=MIT
+
 RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
