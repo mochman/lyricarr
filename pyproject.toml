@@ -4,19 +4,19 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lyricarr"
-version = "0.2.0"
+version = "0.0.1"
 description = "Generate word-synced (enhanced .lrc) lyric sidecars for a self-hosted music library — Demucs + WhisperX + LRCLIB. Works with Jellyfin, Navidrome, and Plex."
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.10"
-authors = [{ name = "Nathan Ellis" }]
+authors = [{ name = "Luke Moch" }]
 keywords = ["lyrics", "lrc", "karaoke", "jellyfin", "navidrome", "plex",
             "self-hosted", "whisperx", "demucs", "forced-alignment"]
 
 dependencies = [
-    "mutagen>=1.47",
-    "demucs>=4.0",
-    "whisperx>=3.1",
+    "mutagen>=1.48",
+    "demucs>=4.1",
+    "whisperx>=3.8",
     "langdetect>=1.0.9",
 ]
 
@@ -24,7 +24,7 @@ dependencies = [
 lyricarr = "lyricarr.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/Nathan1258/lyricarr"
+Homepage = "https://github.com/mochman/lyricarr"
 
 [tool.setuptools.packages.find]
 include = ["lyricarr*"]
