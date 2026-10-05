@@ -1,6 +1,6 @@
 # Lyricarr
 
-Forked from Nathan1258
+Forked from [Nathan1258](https://github.com/Nathan1258/lyricarr)
 
 **Word-synced lyrics for your self-hosted music library — automatically.**
 
@@ -24,7 +24,7 @@ Because the timing is aligned to *your* file, it stays in sync even when other
 sources were timed to a different master/remaster. Your media server picks the
 sidecars up on its next library scan.
 
-## Quick start (Docker — Linux servers)
+## Quick start (Docker)
 
 Add the service to your compose file (see `docker-compose.yml`), point `/music`
 at the same library your server reads, then:
@@ -34,7 +34,7 @@ docker compose run --rm lyricarr            # one pass over the library
 ```
 
 - CPU by default (works anywhere).
-- **NVIDIA GPU**: use the `ghcr.io/nathan1258/lyricarr:cuda` image and `--gpus all`
+- **NVIDIA GPU**: use the `ghcr.io/mochman/lyricarr:cuda` image and `--gpus all`
   — Demucs goes from minutes to seconds per track.
 - Set `LYRICARR_INTERVAL=86400` and `restart: unless-stopped` to keep it topping
   up new music daily.
@@ -90,14 +90,6 @@ Notes:
 ## Players
 
 The `.lrc` files Lyricarr writes work in any client that reads lyric sidecars.
-For the full Apple-Music-style karaoke effect on Apple devices, pair it with
-[**Zuno Music**](https://testflight.apple.com/join/uHbR9qJr) (free beta on
-TestFlight), a music player for Plex, Jellyfin, and Navidrome on iPhone, iPad,
-Apple Watch, Apple TV, and Mac.
-
-Zuno Music renders Lyricarr's lyrics **word-by-word**, highlighting each word as
-it's sung and showing background/harmony vocals beneath the main line, on
-Jellyfin, Plex, and Navidrome v0.64+.
 
 ## Notes & limits
 
