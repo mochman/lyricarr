@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lyricarr"
-version = "0.0.1"
+version = "0.1.0"
 description = "Generate word-synced (enhanced .lrc) lyric sidecars for a self-hosted music library — Demucs + WhisperX + LRCLIB. Works with Jellyfin, Navidrome, and Plex."
 readme = "README.md"
 license = { text = "MIT" }
@@ -18,6 +18,7 @@ dependencies = [
     "demucs>=4.1",
     "whisperx>=3.8",
     "langdetect>=1.0.9",
+    "numpy>=2.5.3",
 ]
 
 [project.scripts]
