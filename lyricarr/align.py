@@ -1,13 +1,17 @@
 from __future__ import annotations
 
-import shutil
-import subprocess
-import sys
+import hashlib
+import logging
 from pathlib import Path
+
+import numpy as np
 
 from .tags import TrackMeta
 
+log = logging.getLogger(__name__)
+
 _MODELS: dict[tuple[str, str], tuple] = {}
+_SEPARATORS: dict[str, object] = {}
 _BRACKETS = str.maketrans("[]", "()")
 
 
@@ -34,27 +38,78 @@ def _fmt_tag(seconds: float) -> str:
     return f"{m:02d}:{s:02d}.{centi:02d}"
 
 
-def separate_vocals(audio: Path, device: str, work: Path) -> Path:
-    """Demucs two-stem vocal isolation, cached. Falls back to CPU if the
-    requested device is unsupported for Demucs."""
-    work.mkdir(parents=True, exist_ok=True)
-    cache = work / f"{audio.stem}.vocals.wav"
-    if cache.exists():
-        return cache
-    tmp = work / "_demucs"
-    for d in (device, "cpu"):
-        try:
-            subprocess.run([sys.executable, "-m", "demucs", "--two-stems", "vocals",
-                            "-n", "htdemucs", "-d", d, "-o", str(tmp), str(audio)],
-                           check=True, capture_output=True)
-            break
-        except subprocess.CalledProcessError:
-            if d == "cpu":
-                raise
-    track_dir = tmp / "htdemucs" / audio.stem
-    (track_dir / "vocals.wav").replace(cache)
-    shutil.rmtree(track_dir, ignore_errors=True)
-    return cache
+def _separator(device: str):
+    """Load the Demucs model once per device and keep it resident."""
+    from demucs.api import Separator
+
+    if device not in _SEPARATORS:
+        _SEPARATORS.clear()  # only keep one model in memory at a time
+        _SEPARATORS[device] = Separator(model="htdemucs", device=device,
+                                        progress=False)
+    return _SEPARATORS[device]
+
+
+def _run_demucs(audio: Path, device: str):
+    """Return (vocals tensor [channels, samples], samplerate)."""
+    import torch
+
+    sep = _separator(device)
+    try:
+        _, stems = sep.separate_audio_file(audio)
+    except torch.cuda.OutOfMemoryError:
+        # Long outlier on a small GPU: retry once with smaller chunks.
+        # Note: this setting persists for later tracks (slightly slower).
+        log.warning("Demucs OOM on %s; retrying with smaller segment", audio.name)
+        torch.cuda.empty_cache()
+        sep.update_parameter(segment=4)
+        _, stems = sep.separate_audio_file(audio)
+    return stems["vocals"], sep.samplerate
+
+
+def _stem_path(audio: Path, work: Path) -> Path:
+    # Hash the full path so same-named files in different folders don't collide.
+    h = hashlib.sha1(str(audio.resolve()).encode()).hexdigest()[:10]
+    return work / f"{audio.stem}.{h}.vocals.wav"
+
+
+def separate_vocals(audio: Path, device: str, work: Path,
+                    keep_stems: bool = False) -> np.ndarray:
+    """Demucs two-stem vocal isolation, run in-process.
+
+    Returns the vocals as 16 kHz mono float32, ready for whisperx. If
+    `keep_stems` is set, the full-quality stem is also written to `work`
+    (and reused on later runs so Demucs is skipped). If the requested
+    device is unsupported for Demucs (e.g. MPS), falls back to CPU.
+    """
+    import torchaudio
+    import whisperx
+    from whisperx.audio import SAMPLE_RATE
+
+    cache = _stem_path(audio, work) if keep_stems else None
+    if cache is not None and cache.exists():
+        return whisperx.load_audio(str(cache))
+
+    try:
+        vocals, sr = _run_demucs(audio, device)
+    except Exception as e:
+        # Fall back only for non-CUDA devices; a CUDA failure that isn't OOM
+        # (or a corrupt input file) should raise rather than silently run on CPU.
+        if device in ("cuda", "cpu"):
+            raise
+        log.warning("Demucs failed on %s (%s); falling back to CPU", device, e)
+        vocals, sr = _run_demucs(audio, "cpu")
+
+    if cache is not None:
+        from demucs.api import save_audio
+
+        work.mkdir(parents=True, exist_ok=True)
+        tmp = cache.with_name(cache.stem + ".tmp.wav")
+        save_audio(vocals.cpu(), str(tmp), samplerate=sr)
+        tmp.replace(cache)  # atomic: no half-written cache files
+
+    mono = vocals.mean(0, keepdim=True)
+    mono = torchaudio.functional.resample(mono, sr, SAMPLE_RATE)
+    return mono.squeeze(0).cpu().numpy().astype(np.float32)
 
 
 def _align_words(text: str, start: float, end: float, model, meta,
@@ -116,30 +171,26 @@ def generate_elrc(audio: Path, lines: list[tuple[float, str]],
     from whisperx.alignment import LANGUAGES_WITHOUT_SPACES
     from whisperx.audio import SAMPLE_RATE
 
-    src = separate_vocals(audio, device, work) if separate else audio
-    try:
-        align_device = "cuda" if device == "cuda" else "cpu"
-        audio_arr = whisperx.load_audio(str(src))
-        duration = len(audio_arr) / SAMPLE_RATE
-        model, align_meta = _align_model(lang, align_device)
-        spaced = lang not in LANGUAGES_WITHOUT_SPACES
+    # With separation, the vocals stay in memory: nothing temporary is written
+    # to disk, so there is nothing to clean up and a failure costs only this track.
+    audio_arr = (separate_vocals(audio, device, work, keep_stems) if separate
+                 else whisperx.load_audio(str(audio)))
+    duration = len(audio_arr) / SAMPLE_RATE
 
-        out = _header(meta, duration)
-        floor = 0.0
-        for i, (t, text) in enumerate(lines):
-            if not text:
-                floor = max(t, floor)
-                out.append(f"[{_fmt_tag(floor)}]")
-                continue
-            end = next((n for n, _ in lines[i + 1:] if n > t), duration)
-            words = (_align_words(text, t, end, model, align_meta, audio_arr, align_device)
-                     if end > t else [])
-            line, floor = _render_line(t, text, words, floor, spaced)
-            out.append(line)
-        return "\n".join(out) + "\n" if any(text for _, text in lines) else None
-    finally:
-        if separate and not keep_stems and src != audio:
-            try:
-                src.unlink()
-            except OSError:
-                pass
+    align_device = "cuda" if device == "cuda" else "cpu"
+    model, align_meta = _align_model(lang, align_device)
+    spaced = lang not in LANGUAGES_WITHOUT_SPACES
+
+    out = _header(meta, duration)
+    floor = 0.0
+    for i, (t, text) in enumerate(lines):
+        if not text:
+            floor = max(t, floor)
+            out.append(f"[{_fmt_tag(floor)}]")
+            continue
+        end = next((n for n, _ in lines[i + 1:] if n > t), duration)
+        words = (_align_words(text, t, end, model, align_meta, audio_arr, align_device)
+                 if end > t else [])
+        line, floor = _render_line(t, text, words, floor, spaced)
+        out.append(line)
+    return "\n".join(out) + "\n" if any(text for _, text in lines) else None
